@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dummy-post-office-golang-app
+  namespace: dummy-post-office-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dummy-post-office-golang-app
+  template:
+    metadata:
+      labels:
+        app: dummy-post-office-golang-app
+    spec:
+      containers:
+      - name: dummy-post-office-golang-app
+        image: localhost:32000/dummy-post-office-golang-app:latest  # Usar la imagen de tu registro local
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: postgres-config  # Referencia al ConfigMap
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dummy-post-office-golang-app-service
+  namespace: dummy-post-office-namespace
+spec:
+  ports:
+    - name: http-port
+      port: 8080
+      targetPort: http-port
+      protocol: TCP
+  selector:
+    app: dummy-post-office-golang-app
