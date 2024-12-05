@@ -16,6 +16,9 @@ RUN go build -o app .
 # Usa una imagen base ligera de Ubuntu para ejecutar el binario
 FROM ubuntu:noble
 
+# Actualizar los repositorios e instalar curl
+RUN apt-get update && apt-get install -y curl && apt-get clean
+
 # Establece el directorio de trabajo en el contenedor
 WORKDIR /app
 
