@@ -20,12 +20,11 @@ func initTable(w http.ResponseWriter, r *http.Request) {
 	CREATE TABLE IF NOT EXISTS messages (
 		id SERIAL PRIMARY KEY,
 		content TEXT NOT NULL,
-		from VARCHAR(255) NOT NULL,
-		to VARCHAR(255) NOT NULL,
+		address_from VARCHAR(255) NOT NULL,
+		address_to VARCHAR(255) NOT NULL,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		constraint from_to check (from <> to),
-		constraint from_check CHECK (position('@' IN from) > 0),
-		constraint to_check CHECK (position('@' IN to) > 0)
+		constraint from_check CHECK (position('@' IN address_from) > 0),
+		constraint to_check CHECK (position('@' IN address_to) > 0)
 	);`
 
 	// Ejecuta la creación de la tabla
