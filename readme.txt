@@ -18,6 +18,7 @@ curl http://localhost:8080/status
 # ip del pod
 curl http://10.1.69.40:8080/status
 # ip del servicio
+microk8s kubectl get services -n dummy-post-office-namespace | grep dummy-post-office
 curl http://10.152.183.94:8080/status
 # nombre del servicio corto
 curl http://dummy-post-office-golang-app-service:8080/status
