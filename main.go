@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -22,6 +23,7 @@ func initTable(w http.ResponseWriter, r *http.Request) {
 		content TEXT NOT NULL,
 		address_from VARCHAR(255) NOT NULL,
 		address_to VARCHAR(255) NOT NULL,
+		subject VARCHAR(512) NOT NULL,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		constraint from_check CHECK (position('@' IN address_from) > 0),
 		constraint to_check CHECK (position('@' IN address_to) > 0)
@@ -36,6 +38,21 @@ func initTable(w http.ResponseWriter, r *http.Request) {
 
 	// Responde json indicando que la tabla se creó o ya existe
 	w.Write([]byte(`{"message": "Tabla 'messages' creada o ya existe"}`))
+}
+
+func dropTable(w http.ResponseWriter, r *http.Request) {
+	// SQL para eliminar la tabla "messages"
+	dropTableSQL := `DROP TABLE IF EXISTS messages;`
+
+	// Ejecuta la eliminación de la tabla
+	_, err := db.Exec(dropTableSQL)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error al eliminar la tabla: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Responde json indicando que la tabla se eliminó o no existía
+	w.Write([]byte(`{"message": "Tabla 'messages' eliminada o no existía"}`))
 }
 
 // checkTable verifica si la tabla "messages" existe
@@ -87,7 +104,9 @@ func main() {
 	}
 
 	// Manejadores de las rutas
+	http.HandleFunc("/send", withLogging(corsMiddleware(postSendHandler)))
 	http.HandleFunc("/init", withLogging(initTable))
+	http.HandleFunc("/clean", withLogging(dropTable))
 	http.HandleFunc("/status", withLogging(checkTable))
 	//manejador por defecto 404
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +117,49 @@ func main() {
 	// Inicia el servidor en el puerto 8080
 	fmt.Println("Servidor iniciado en :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+type Message struct {
+	From    string `json:"from"`
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	Content string `json:"content"`
+}
+
+func postSendHandler(w http.ResponseWriter, r *http.Request) {
+	// Verifica que el método sea POST
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error": "Método no permitido"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parsea el cuerpo de la solicitud en json
+	var message Message
+	if err := json.NewDecoder(r.Body).Decode(&message); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Error al parsear el cuerpo de la solicitud: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+
+	// Verifica que los campos no estén vacíos
+	if message.Content == "" || message.From == "" || message.To == "" || message.Subject == "" {
+		http.Error(w, `{"error": "Los campos address_from, address_to, subject y content son requeridos"}`, http.StatusBadRequest)
+		return
+	}
+
+	// SQL para insertar un mensaje
+	var id int
+	query := `INSERT INTO messages (content, address_from, address_to, subject) VALUES ($1, $2, $3, $4) RETURNING id;`
+	err := db.QueryRow(query, message.Content, message.From, message.To, message.Subject).Scan(&id)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Error al insertar el mensaje: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	//tiempo de espera de 2 segundos para poner drama
+	time.Sleep(2 * time.Second)
+
+	// Responde con un mensaje en formato JSON
+	w.Write([]byte(`{"message": "Mensaje enviado", "id": ` + fmt.Sprintf("%d", id) + `}`))
 }
 
 // Middleware para registrar solicitudes HTTP
@@ -113,5 +175,26 @@ func withLogging(handler http.HandlerFunc) http.HandlerFunc {
 
 		// Registrar información adicional (tiempo de respuesta)
 		log.Printf("Completed %s %s in %v", r.Method, r.URL.Path, time.Since(start))
+	}
+}
+
+func corsMiddleware(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Permitir cualquier origen
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// Permitir los métodos GET, POST, PUT, DELETE
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+
+		// Permitir los encabezados Authorization y Content-Type
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+
+		// Si la solicitud es de tipo OPTIONS, terminar aquí
+		if r.Method == http.MethodOptions {
+			return
+		}
+
+		// Ejecutar el manejador original
+		handler(w, r)
 	}
 }
