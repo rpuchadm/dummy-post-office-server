@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -87,10 +88,31 @@ func main() {
 	}
 
 	// Manejadores de las rutas
-	http.HandleFunc("/init", initTable)
-	http.HandleFunc("/status", checkTable)
+	http.HandleFunc("/init", withLogging(initTable))
+	http.HandleFunc("/status", withLogging(checkTable))
+	//manejador por defecto 404
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Ruta no encontrada: %s %s", r.Method, r.URL.Path)
+		http.Error(w, "Ruta no encontrada", http.StatusNotFound)
+	})
 
 	// Inicia el servidor en el puerto 8080
 	fmt.Println("Servidor iniciado en :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+// Middleware para registrar solicitudes HTTP
+func withLogging(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		// Registrar información de la solicitud
+		log.Printf("Started %s %s", r.Method, r.URL.Path)
+
+		// Ejecutar el manejador original
+		handler(w, r)
+
+		// Registrar información adicional (tiempo de respuesta)
+		log.Printf("Completed %s %s in %v", r.Method, r.URL.Path, time.Since(start))
+	}
 }

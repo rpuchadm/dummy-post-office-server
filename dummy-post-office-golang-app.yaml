@@ -31,7 +31,7 @@ spec:
   ports:
     - name: http-port
       port: 8080
-      targetPort: http-port
+      targetPort: 8080 # Debe coincidir con el puerto expuesto por el contenedor
       protocol: TCP
   selector:
-    app: dummy-post-office-golang-app
+    app: dummy-post-office-golang-app # Asegúrate de que coincida con las etiquetas del pod

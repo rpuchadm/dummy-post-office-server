@@ -2,20 +2,18 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: dummy-post-office-golang-app-ingress
-  namespace: cfp
+  namespace: dummy-post-office-namespace
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$1
 spec:
-  ingressClassName: cfp-traefik
-  tls:
-    - secretName: desa-tls-secret
+  ingressClassName: public
   rules:
     - host: post.mydomain.com
       http:
         paths:
-          - path: /
+          - path: /post-office/?(.*)
             pathType: Prefix
             backend:
               service:
