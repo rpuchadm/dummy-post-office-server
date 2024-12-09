@@ -35,8 +35,8 @@ func initTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Responde indicando que la tabla se creó o ya existe
-	w.Write([]byte("Tabla 'messages' creada o ya existe"))
+	// Responde json indicando que la tabla se creó o ya existe
+	w.Write([]byte(`{"message": "Tabla 'messages' creada o ya existe"}`))
 }
 
 // checkTable verifica si la tabla "messages" existe
@@ -50,11 +50,11 @@ func checkTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Responde según si la tabla existe
+	// Responde json según si la tabla existe
 	if exists {
-		w.Write([]byte("La tabla 'messages' existe"))
+		w.Write([]byte(`{"message": "La tabla 'messages' existe"}`))
 	} else {
-		w.Write([]byte("La tabla 'messages' no existe"))
+		w.Write([]byte(`{"message": "La tabla 'messages' no existe"}`))
 	}
 }
 
