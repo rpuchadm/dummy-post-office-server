@@ -104,6 +104,7 @@ func main() {
 	}
 
 	// Manejadores de las rutas
+	http.HandleFunc("/messages", withLogging(corsMiddleware(getMessagesHandler)))
 	http.HandleFunc("/send", withLogging(corsMiddleware(postSendHandler)))
 	http.HandleFunc("/init", withLogging(initTable))
 	http.HandleFunc("/clean", withLogging(dropTable))
@@ -119,7 +120,55 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-type Message struct {
+type MessageData struct {
+	ID        int       `json:"id"`
+	Content   string    `json:"content"`
+	From      string    `json:"from"`
+	To        string    `json:"to"`
+	Subject   string    `json:"subject"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func getMessagesHandler(w http.ResponseWriter, r *http.Request) {
+	// Verifica que el método sea GET
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error": "Método no permitido"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	// SQL para obtener todos los mensajes
+	query := `SELECT id, content, address_from, address_to, subject, created_at FROM messages;`
+	rows, err := db.Query(query)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Error al obtener los mensajes: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Estructura para almacenar los mensajes
+	var messages []MessageData
+	for rows.Next() {
+		var message MessageData
+		if err := rows.Scan(&message.ID, &message.Content, &message.From, &message.To, &message.Subject, &message.CreatedAt); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Error al escanear los mensajes: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+		messages = append(messages, message)
+	}
+
+	// Convierte los mensajes a formato JSON
+	jsonMessages, err := json.Marshal(messages)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Error al convertir los mensajes a JSON: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	// Responde con los mensajes en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonMessages)
+}
+
+type MessagePostSent struct {
 	From    string `json:"from"`
 	To      string `json:"to"`
 	Subject string `json:"subject"`
@@ -134,7 +183,7 @@ func postSendHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parsea el cuerpo de la solicitud en json
-	var message Message
+	var message MessagePostSent
 	if err := json.NewDecoder(r.Body).Decode(&message); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Error al parsear el cuerpo de la solicitud: %v"}`, err), http.StatusBadRequest)
 		return
