@@ -99,9 +99,7 @@ func checkTable(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func openDatabaseConnection() (*sql.DB, error) {
-
-	// Obtener las variables de entorno
+func databaseConnString() (string, error) {
 	dbUser := os.Getenv("POSTGRES_USER")
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	dbName := os.Getenv("POSTGRES_DB")
@@ -109,11 +107,18 @@ func openDatabaseConnection() (*sql.DB, error) {
 
 	// Si alguna variable de entorno no está definida, el programa falla
 	if dbUser == "" || dbPassword == "" || dbName == "" {
-		return nil, fmt.Errorf("error: Las variables de entorno POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB deben estar definidas")
+		return "", fmt.Errorf("error: Las variables de entorno POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB deben estar definidas")
 	}
 
-	// Construir la cadena de conexión
-	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", dbUser, dbPassword, dbService, dbName)
+	return fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", dbUser, dbPassword, dbService, dbName), nil
+}
+
+func openDatabaseConnection() (*sql.DB, error) {
+
+	connStr, err := databaseConnString()
+	if err != nil {
+		return nil, err
+	}
 
 	// Conexión a PostgreSQL
 	db, err := sql.Open("postgres", connStr)
