@@ -13,18 +13,19 @@ import (
 )
 
 // initTable crea la tabla "messages" si no existe
-func initTable(w http.ResponseWriter, r *http.Request) {
+func initTable(connStr string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	// Abre la conexión a la base de datos
-	var err error
-	db, err := openDatabaseConnection()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+		// Abre la conexión a la base de datos
+		var err error
+		db, err := openDatabaseConnection(connStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
 
-	// SQL para crear la tabla si no existe
-	createTableSQL := `
+		// SQL para crear la tabla si no existe
+		createTableSQL := `
 	CREATE TABLE IF NOT EXISTS messages (
 		id SERIAL PRIMARY KEY,
 		content TEXT NOT NULL,
@@ -36,66 +37,71 @@ func initTable(w http.ResponseWriter, r *http.Request) {
 		constraint to_check CHECK (position('@' IN address_to) > 0)
 	);`
 
-	// Ejecuta la creación de la tabla
-	_, err = db.Exec(createTableSQL)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error al crear la tabla: %v", err), http.StatusInternalServerError)
-		return
-	}
+		// Ejecuta la creación de la tabla
+		_, err = db.Exec(createTableSQL)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error al crear la tabla: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-	// Responde json indicando que la tabla se creó o ya existe
-	w.Write([]byte(`{"message": "Tabla 'messages' creada o ya existe"}`))
+		// Responde json indicando que la tabla se creó o ya existe
+		w.Write([]byte(`{"message": "Tabla 'messages' creada o ya existe"}`))
+	}
 }
 
-func dropTable(w http.ResponseWriter, r *http.Request) {
+func dropTable(connStr string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	// Abre la conexión a la base de datos
-	var err error
-	db, err := openDatabaseConnection()
-	if err != nil {
-		log.Fatal(err)
+		// Abre la conexión a la base de datos
+		var err error
+		db, err := openDatabaseConnection(connStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+
+		// SQL para eliminar la tabla "messages"
+		dropTableSQL := `DROP TABLE IF EXISTS messages;`
+
+		// Ejecuta la eliminación de la tabla
+		_, err = db.Exec(dropTableSQL)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error al eliminar la tabla: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Responde json indicando que la tabla se eliminó o no existía
+		w.Write([]byte(`{"message": "Tabla 'messages' eliminada o no existía"}`))
 	}
-	defer db.Close()
-
-	// SQL para eliminar la tabla "messages"
-	dropTableSQL := `DROP TABLE IF EXISTS messages;`
-
-	// Ejecuta la eliminación de la tabla
-	_, err = db.Exec(dropTableSQL)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error al eliminar la tabla: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Responde json indicando que la tabla se eliminó o no existía
-	w.Write([]byte(`{"message": "Tabla 'messages' eliminada o no existía"}`))
 }
 
 // checkTable verifica si la tabla "messages" existe
-func checkTable(w http.ResponseWriter, r *http.Request) {
+func checkTable(connStr string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	// Abre la conexión a la base de datos
-	var err error
-	db, err := openDatabaseConnection()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+		// Abre la conexión a la base de datos
+		var err error
+		db, err := openDatabaseConnection(connStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
 
-	// SQL para verificar si la tabla existe
-	var exists bool
-	query := `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'messages');`
-	err = db.QueryRow(query).Scan(&exists)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error al verificar la tabla: %v", err), http.StatusInternalServerError)
-		return
-	}
+		// SQL para verificar si la tabla existe
+		var exists bool
+		query := `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'messages');`
+		err = db.QueryRow(query).Scan(&exists)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error al verificar la tabla: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-	// Responde json según si la tabla existe
-	if exists {
-		w.Write([]byte(`{"message": "La tabla 'messages' existe"}`))
-	} else {
-		w.Write([]byte(`{"message": "La tabla 'messages' no existe"}`))
+		// Responde json según si la tabla existe
+		if exists {
+			w.Write([]byte(`{"message": "La tabla 'messages' existe"}`))
+		} else {
+			w.Write([]byte(`{"message": "La tabla 'messages' no existe"}`))
+		}
 	}
 }
 
@@ -113,12 +119,7 @@ func databaseConnString() (string, error) {
 	return fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", dbUser, dbPassword, dbService, dbName), nil
 }
 
-func openDatabaseConnection() (*sql.DB, error) {
-
-	connStr, err := databaseConnString()
-	if err != nil {
-		return nil, err
-	}
+func openDatabaseConnection(connStr string) (*sql.DB, error) {
 
 	// Conexión a PostgreSQL
 	db, err := sql.Open("postgres", connStr)
@@ -136,12 +137,17 @@ func openDatabaseConnection() (*sql.DB, error) {
 
 func main() {
 
+	connStr, err := databaseConnString()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Manejadores de las rutas
-	http.HandleFunc("/messages", withLogging(corsMiddleware(getMessagesHandler)))
-	http.HandleFunc("/send", withLogging(corsMiddleware(postSendHandler)))
-	http.HandleFunc("/init", withLogging(initTable))
-	http.HandleFunc("/clean", withLogging(dropTable))
-	http.HandleFunc("/status", withLogging(checkTable))
+	http.HandleFunc("/messages", withLogging(corsMiddleware(getMessagesHandler(connStr))))
+	http.HandleFunc("/send", withLogging(corsMiddleware(postSendHandler(connStr))))
+	http.HandleFunc("/init", withLogging(initTable(connStr)))
+	http.HandleFunc("/clean", withLogging(dropTable(connStr)))
+	http.HandleFunc("/status", withLogging(checkTable(connStr)))
 	//manejador por defecto 404
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Ruta no encontrada: %s %s", r.Method, r.URL.Path)
@@ -162,52 +168,54 @@ type MessageData struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func getMessagesHandler(w http.ResponseWriter, r *http.Request) {
+func getMessagesHandler(connStr string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	// Abre la conexión a la base de datos
-	var err error
-	db, err := openDatabaseConnection()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+		// Abre la conexión a la base de datos
+		var err error
+		db, err := openDatabaseConnection(connStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
 
-	// Verifica que el método sea GET
-	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "Método no permitido"}`, http.StatusMethodNotAllowed)
-		return
-	}
-
-	// SQL para obtener todos los mensajes
-	query := `SELECT id, content, address_from, address_to, subject, created_at FROM messages;`
-	rows, err := db.Query(query)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Error al obtener los mensajes: %v"}`, err), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	// Estructura para almacenar los mensajes
-	var messages []MessageData
-	for rows.Next() {
-		var message MessageData
-		if err := rows.Scan(&message.ID, &message.Content, &message.From, &message.To, &message.Subject, &message.CreatedAt); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error": "Error al escanear los mensajes: %v"}`, err), http.StatusInternalServerError)
+		// Verifica que el método sea GET
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error": "Método no permitido"}`, http.StatusMethodNotAllowed)
 			return
 		}
-		messages = append(messages, message)
-	}
 
-	// Convierte los mensajes a formato JSON
-	jsonMessages, err := json.Marshal(messages)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Error al convertir los mensajes a JSON: %v"}`, err), http.StatusInternalServerError)
-		return
-	}
+		// SQL para obtener todos los mensajes
+		query := `SELECT id, content, address_from, address_to, subject, created_at FROM messages;`
+		rows, err := db.Query(query)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Error al obtener los mensajes: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
 
-	// Responde con los mensajes en formato JSON
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(jsonMessages)
+		// Estructura para almacenar los mensajes
+		var messages []MessageData
+		for rows.Next() {
+			var message MessageData
+			if err := rows.Scan(&message.ID, &message.Content, &message.From, &message.To, &message.Subject, &message.CreatedAt); err != nil {
+				http.Error(w, fmt.Sprintf(`{"error": "Error al escanear los mensajes: %v"}`, err), http.StatusInternalServerError)
+				return
+			}
+			messages = append(messages, message)
+		}
+
+		// Convierte los mensajes a formato JSON
+		jsonMessages, err := json.Marshal(messages)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Error al convertir los mensajes a JSON: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		// Responde con los mensajes en formato JSON
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jsonMessages)
+	}
 }
 
 type MessagePostSent struct {
@@ -217,49 +225,51 @@ type MessagePostSent struct {
 	Content string `json:"content"`
 }
 
-func postSendHandler(w http.ResponseWriter, r *http.Request) {
+func postSendHandler(connStr string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	// Abre la conexión a la base de datos
-	var err error
-	db, err := openDatabaseConnection()
-	if err != nil {
-		log.Fatal(err)
+		// Abre la conexión a la base de datos
+		var err error
+		db, err := openDatabaseConnection(connStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+
+		// Verifica que el método sea POST
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error": "Método no permitido"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Parsea el cuerpo de la solicitud en json
+		var message MessagePostSent
+		if err := json.NewDecoder(r.Body).Decode(&message); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Error al parsear el cuerpo de la solicitud: %v"}`, err), http.StatusBadRequest)
+			return
+		}
+
+		// Verifica que los campos no estén vacíos
+		if message.Content == "" || message.From == "" || message.To == "" || message.Subject == "" {
+			http.Error(w, `{"error": "Los campos address_from, address_to, subject y content son requeridos"}`, http.StatusBadRequest)
+			return
+		}
+
+		// SQL para insertar un mensaje
+		var id int
+		query := `INSERT INTO messages (content, address_from, address_to, subject) VALUES ($1, $2, $3, $4) RETURNING id;`
+		err = db.QueryRow(query, message.Content, message.From, message.To, message.Subject).Scan(&id)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Error al insertar el mensaje: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		//tiempo de espera de 2 segundos para poner drama
+		time.Sleep(2 * time.Second)
+
+		// Responde con un mensaje en formato JSON
+		w.Write([]byte(`{"message": "Mensaje enviado", "id": ` + fmt.Sprintf("%d", id) + `}`))
 	}
-	defer db.Close()
-
-	// Verifica que el método sea POST
-	if r.Method != http.MethodPost {
-		http.Error(w, `{"error": "Método no permitido"}`, http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parsea el cuerpo de la solicitud en json
-	var message MessagePostSent
-	if err := json.NewDecoder(r.Body).Decode(&message); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Error al parsear el cuerpo de la solicitud: %v"}`, err), http.StatusBadRequest)
-		return
-	}
-
-	// Verifica que los campos no estén vacíos
-	if message.Content == "" || message.From == "" || message.To == "" || message.Subject == "" {
-		http.Error(w, `{"error": "Los campos address_from, address_to, subject y content son requeridos"}`, http.StatusBadRequest)
-		return
-	}
-
-	// SQL para insertar un mensaje
-	var id int
-	query := `INSERT INTO messages (content, address_from, address_to, subject) VALUES ($1, $2, $3, $4) RETURNING id;`
-	err = db.QueryRow(query, message.Content, message.From, message.To, message.Subject).Scan(&id)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Error al insertar el mensaje: %v"}`, err), http.StatusInternalServerError)
-		return
-	}
-
-	//tiempo de espera de 2 segundos para poner drama
-	time.Sleep(2 * time.Second)
-
-	// Responde con un mensaje en formato JSON
-	w.Write([]byte(`{"message": "Mensaje enviado", "id": ` + fmt.Sprintf("%d", id) + `}`))
 }
 
 // middleware que concatena todos los middlewares
