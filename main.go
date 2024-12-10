@@ -137,10 +137,22 @@ func openDatabaseConnection(connStr string) (*sql.DB, error) {
 
 func main() {
 
+	// Cadena de conexión a la base de datos
 	connStr, err := databaseConnString()
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// carga el token de autenticación desde una variable de entorno
+	token := os.Getenv("AUTH_TOKEN")
+	if token == "" {
+		log.Fatal("error: La variable de entorno AUTH_TOKEN debe estar definida")
+	}
+
+	//healz check
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	})
 
 	// Manejadores de las rutas
 	http.HandleFunc("/messages", withLogging(corsMiddleware(getMessagesHandler(connStr))))
