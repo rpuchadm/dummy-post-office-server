@@ -28,12 +28,12 @@ spec:
               name: auth-secret  # Nombre del secret
               key: AUTH_TOKEN    # Clave del secret            
         resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
           limits:
             cpu: 500m
             memory: 128Mi
+          requests:
+            cpu: 100m
+            memory: 32Mi
         livenessProbe:
           httpGet:
             path: /healthz
