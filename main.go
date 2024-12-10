@@ -12,10 +12,17 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var db *sql.DB
-
 // initTable crea la tabla "messages" si no existe
 func initTable(w http.ResponseWriter, r *http.Request) {
+
+	// Abre la conexión a la base de datos
+	var err error
+	db, err := openDatabaseConnection()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	// SQL para crear la tabla si no existe
 	createTableSQL := `
 	CREATE TABLE IF NOT EXISTS messages (
@@ -30,7 +37,7 @@ func initTable(w http.ResponseWriter, r *http.Request) {
 	);`
 
 	// Ejecuta la creación de la tabla
-	_, err := db.Exec(createTableSQL)
+	_, err = db.Exec(createTableSQL)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error al crear la tabla: %v", err), http.StatusInternalServerError)
 		return
@@ -41,11 +48,20 @@ func initTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func dropTable(w http.ResponseWriter, r *http.Request) {
+
+	// Abre la conexión a la base de datos
+	var err error
+	db, err := openDatabaseConnection()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	// SQL para eliminar la tabla "messages"
 	dropTableSQL := `DROP TABLE IF EXISTS messages;`
 
 	// Ejecuta la eliminación de la tabla
-	_, err := db.Exec(dropTableSQL)
+	_, err = db.Exec(dropTableSQL)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error al eliminar la tabla: %v", err), http.StatusInternalServerError)
 		return
@@ -57,10 +73,19 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 
 // checkTable verifica si la tabla "messages" existe
 func checkTable(w http.ResponseWriter, r *http.Request) {
+
+	// Abre la conexión a la base de datos
+	var err error
+	db, err := openDatabaseConnection()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	// SQL para verificar si la tabla existe
 	var exists bool
 	query := `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'messages');`
-	err := db.QueryRow(query).Scan(&exists)
+	err = db.QueryRow(query).Scan(&exists)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error al verificar la tabla: %v", err), http.StatusInternalServerError)
 		return
@@ -74,7 +99,8 @@ func checkTable(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func main() {
+func openDatabaseConnection() (*sql.DB, error) {
+
 	// Obtener las variables de entorno
 	dbUser := os.Getenv("POSTGRES_USER")
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
@@ -83,25 +109,27 @@ func main() {
 
 	// Si alguna variable de entorno no está definida, el programa falla
 	if dbUser == "" || dbPassword == "" || dbName == "" {
-		log.Fatal("Las variables de entorno POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB deben estar definidas")
+		return nil, fmt.Errorf("error: Las variables de entorno POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB deben estar definidas")
 	}
 
 	// Construir la cadena de conexión
-	// connStr := "postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full"
 	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", dbUser, dbPassword, dbService, dbName)
 
 	// Conexión a PostgreSQL
-	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("Error al conectar a la base de datos:", err)
+		return nil, fmt.Errorf("error: Error al conectar a la base de datos: %v", err)
 	}
-	defer db.Close()
 
 	// Verifica que la base de datos se pueda acceder
 	if err := db.Ping(); err != nil {
-		log.Fatal("No se pudo conectar a la base de datos:", err)
+		return nil, fmt.Errorf("error: No se pudo conectar a la base de datos: %v", err)
 	}
+
+	return db, nil
+}
+
+func main() {
 
 	// Manejadores de las rutas
 	http.HandleFunc("/messages", withLogging(corsMiddleware(getMessagesHandler)))
@@ -130,6 +158,15 @@ type MessageData struct {
 }
 
 func getMessagesHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Abre la conexión a la base de datos
+	var err error
+	db, err := openDatabaseConnection()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	// Verifica que el método sea GET
 	if r.Method != http.MethodGet {
 		http.Error(w, `{"error": "Método no permitido"}`, http.StatusMethodNotAllowed)
@@ -176,6 +213,15 @@ type MessagePostSent struct {
 }
 
 func postSendHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Abre la conexión a la base de datos
+	var err error
+	db, err := openDatabaseConnection()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	// Verifica que el método sea POST
 	if r.Method != http.MethodPost {
 		http.Error(w, `{"error": "Método no permitido"}`, http.StatusMethodNotAllowed)
@@ -198,7 +244,7 @@ func postSendHandler(w http.ResponseWriter, r *http.Request) {
 	// SQL para insertar un mensaje
 	var id int
 	query := `INSERT INTO messages (content, address_from, address_to, subject) VALUES ($1, $2, $3, $4) RETURNING id;`
-	err := db.QueryRow(query, message.Content, message.From, message.To, message.Subject).Scan(&id)
+	err = db.QueryRow(query, message.Content, message.From, message.To, message.Subject).Scan(&id)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Error al insertar el mensaje: %v"}`, err), http.StatusInternalServerError)
 		return
@@ -209,6 +255,14 @@ func postSendHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Responde con un mensaje en formato JSON
 	w.Write([]byte(`{"message": "Mensaje enviado", "id": ` + fmt.Sprintf("%d", id) + `}`))
+}
+
+// middleware que concatena todos los middlewares
+func chainMiddleware(handler http.HandlerFunc, middlewares ...func(http.HandlerFunc) http.HandlerFunc) http.HandlerFunc {
+	for _, middleware := range middlewares {
+		handler = middleware(handler)
+	}
+	return handler
 }
 
 // Middleware para registrar solicitudes HTTP
