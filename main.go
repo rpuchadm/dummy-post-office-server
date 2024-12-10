@@ -155,8 +155,9 @@ func main() {
 	})
 
 	// Manejadores de las rutas
-	http.HandleFunc("/messages", withLogging(corsMiddleware(getMessagesHandler(connStr))))
-	http.HandleFunc("/send", withLogging(corsMiddleware(postSendHandler(connStr))))
+	http.HandleFunc("/auth", withLogging(corsMiddleware(withAuth(getAuthHandler, token))))
+	http.HandleFunc("/messages", withLogging(corsMiddleware(withAuth(getMessagesHandler(connStr), token))))
+	http.HandleFunc("/send", withLogging(corsMiddleware(withAuth(postSendHandler(connStr), token))))
 	http.HandleFunc("/init", withLogging(initTable(connStr)))
 	http.HandleFunc("/clean", withLogging(dropTable(connStr)))
 	http.HandleFunc("/status", withLogging(checkTable(connStr)))
@@ -169,6 +170,26 @@ func main() {
 	// Inicia el servidor en el puerto 8080
 	fmt.Println("Servidor iniciado en :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func getAuthHandler(w http.ResponseWriter, r *http.Request) {
+	// la cache en el cliente puede ser de dos minutos
+	w.Header().Set("Cache-Control", "public, max-age=120")
+	w.Write([]byte(`{"status": "success"}`))
+}
+
+// middleware para autenticación
+func withAuth(handler http.HandlerFunc, token string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Verificar si el token de autenticación es correcto
+		if r.Header.Get("Authorization") != "Bearer "+token {
+			http.Error(w, `{"error": "No autorizado"}`, http.StatusUnauthorized)
+			return
+		}
+
+		// Ejecutar el manejador original
+		handler(w, r)
+	}
 }
 
 type MessageData struct {
