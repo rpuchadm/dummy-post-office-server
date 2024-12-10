@@ -272,14 +272,6 @@ func postSendHandler(connStr string) http.HandlerFunc {
 	}
 }
 
-// middleware que concatena todos los middlewares
-func chainMiddleware(handler http.HandlerFunc, middlewares ...func(http.HandlerFunc) http.HandlerFunc) http.HandlerFunc {
-	for _, middleware := range middlewares {
-		handler = middleware(handler)
-	}
-	return handler
-}
-
 // Middleware para registrar solicitudes HTTP
 func withLogging(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
