@@ -336,7 +336,7 @@ func corsMiddleware(handler http.HandlerFunc) http.HandlerFunc {
 		// Si la solicitud es de tipo OPTIONS, terminar aquí
 		if r.Method == http.MethodOptions {
 			//fmt.Println("corsMiddleware OPTIONS")
-			w.WriteHeader(http.StatusOK)
+			//w.WriteHeader(http.StatusOK)
 			return
 		}
 
