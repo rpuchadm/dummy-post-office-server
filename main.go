@@ -174,7 +174,7 @@ func main() {
 
 func getAuthHandler(w http.ResponseWriter, r *http.Request) {
 	// la cache en el cliente puede ser de dos minutos
-	w.Header().Set("Cache-Control", "public, max-age=120")
+	//w.Header().Set("Cache-Control", "public, max-age=120")
 	w.Write([]byte(`{"status": "success"}`))
 }
 
@@ -183,6 +183,7 @@ func withAuth(handler http.HandlerFunc, token string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Verificar si el token de autenticación es correcto
 		if r.Header.Get("Authorization") != "Bearer "+token {
+			//fmt.Println("withAuth No autorizado")
 			http.Error(w, `{"error": "No autorizado"}`, http.StatusUnauthorized)
 			return
 		}
@@ -334,6 +335,8 @@ func corsMiddleware(handler http.HandlerFunc) http.HandlerFunc {
 
 		// Si la solicitud es de tipo OPTIONS, terminar aquí
 		if r.Method == http.MethodOptions {
+			//fmt.Println("corsMiddleware OPTIONS")
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
