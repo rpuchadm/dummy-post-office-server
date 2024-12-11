@@ -13,17 +13,18 @@ spec:
     - host: post.mydomain.com
       http:
         paths:
-          - path: /post-office/?(.*)
-            pathType: Prefix
-            backend:
-              service:
-                name: dummy-post-office-vite-nginx-app-service
-                port:
-                  number: 80
           - path: /post-office-api/?(.*)
             pathType: Prefix
             backend:
               service:
                 name: dummy-post-office-golang-app-service
                 port:
-                  number: 8080
+                  number: 8080        
+          - path: /?(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: dummy-post-office-vite-nginx-app-service
+                port:
+                  number: 80
+
