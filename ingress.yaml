@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: dummy-post-office-golang-app-ingress
+  name: dummy-post-office-app-ingress
   namespace: dummy-post-office-namespace
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
@@ -14,6 +14,13 @@ spec:
       http:
         paths:
           - path: /post-office/?(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: dummy-post-office-vite-nginx-app-service
+                port:
+                  number: 80
+          - path: /post-office-api/?(.*)
             pathType: Prefix
             backend:
               service:
