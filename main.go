@@ -26,16 +26,16 @@ func initTable(connStr string) http.HandlerFunc {
 
 		// SQL para crear la tabla si no existe
 		createTableSQL := `
-	CREATE TABLE IF NOT EXISTS messages (
-		id SERIAL PRIMARY KEY,
-		content TEXT NOT NULL,
-		address_from VARCHAR(255) NOT NULL,
-		address_to VARCHAR(255) NOT NULL,
-		subject VARCHAR(512) NOT NULL,
-		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		constraint from_check CHECK (position('@' IN address_from) > 0),
-		constraint to_check CHECK (position('@' IN address_to) > 0)
-	);`
+		CREATE TABLE IF NOT EXISTS messages (
+			id SERIAL PRIMARY KEY,
+			content TEXT NOT NULL,
+			address_from VARCHAR(255) NOT NULL,
+			address_to VARCHAR(255) NOT NULL,
+			subject VARCHAR(512) NOT NULL,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			constraint from_check CHECK (position('@' IN address_from) > 0),
+			constraint to_check CHECK (position('@' IN address_to) > 0)
+		);`
 
 		// Ejecuta la creación de la tabla
 		_, err = db.Exec(createTableSQL)
