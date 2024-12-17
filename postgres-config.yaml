@@ -4,8 +4,9 @@ metadata:
   name: postgres-config
   namespace: dummy-post-office-namespace
 data:
-  POSTGRES_USER: "user"
-  POSTGRES_PASSWORD: "password"
   POSTGRES_DB: "mydatabase"
+  POSTGRES_PASSWORD: "password"
+  POSTGRES_SERVICE: "postgresql.dummy-post-office-namespace"
+  POSTGRES_USER: "user"
 ---
 

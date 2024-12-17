@@ -109,7 +109,7 @@ func databaseConnString() (string, error) {
 	dbUser := os.Getenv("POSTGRES_USER")
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	dbName := os.Getenv("POSTGRES_DB")
-	const dbService = "postgresql"
+	dbService := os.Getenv("POSTGRES_SERVICE")
 
 	// Si alguna variable de entorno no está definida, el programa falla
 	if dbUser == "" || dbPassword == "" || dbName == "" {
@@ -141,12 +141,16 @@ func main() {
 	connStr, err := databaseConnString()
 	if err != nil {
 		log.Fatal(err)
+		//} else {
+		//	fmt.Println("Cadena de conexión a la base de datos:", connStr)
 	}
 
 	// carga el token de autenticación desde una variable de entorno
 	token := os.Getenv("AUTH_TOKEN")
 	if token == "" {
 		log.Fatal("error: La variable de entorno AUTH_TOKEN debe estar definida")
+		//} else {
+		//	fmt.Println("Token de autenticación:", token)
 	}
 
 	//healz check
@@ -229,18 +233,18 @@ func getMessagesHandler(connStr string) http.HandlerFunc {
 		defer rows.Close()
 
 		// Estructura para almacenar los mensajes
-		var messages []MessageData
+		var list []MessageData
 		for rows.Next() {
-			var message MessageData
-			if err := rows.Scan(&message.ID, &message.Content, &message.From, &message.To, &message.Subject, &message.CreatedAt); err != nil {
+			var item MessageData
+			if err := rows.Scan(&item.ID, &item.Content, &item.From, &item.To, &item.Subject, &item.CreatedAt); err != nil {
 				http.Error(w, fmt.Sprintf(`{"error": "Error al escanear los mensajes: %v"}`, err), http.StatusInternalServerError)
 				return
 			}
-			messages = append(messages, message)
+			list = append(list, item)
 		}
 
 		// Convierte los mensajes a formato JSON
-		jsonMessages, err := json.Marshal(messages)
+		jsonList, err := json.Marshal(list)
 		if err != nil {
 			http.Error(w, fmt.Sprintf(`{"error": "Error al convertir los mensajes a JSON: %v"}`, err), http.StatusInternalServerError)
 			return
@@ -248,7 +252,7 @@ func getMessagesHandler(connStr string) http.HandlerFunc {
 
 		// Responde con los mensajes en formato JSON
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(jsonMessages)
+		w.Write(jsonList)
 	}
 }
 
