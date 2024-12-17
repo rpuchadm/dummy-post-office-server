@@ -4,7 +4,7 @@ LOCAL_REGISTRY=localhost:32000
 K8S_NAMESPACE=dummy-post-office-namespace
 K8S_DEPLOYMENT=dummy-post-office-golang-app
 
-.PHONY: build tag push deploy restart all
+.PHONY: build tag push restart all
 
 # Construir la imagen de Docker
 build:
