@@ -7,7 +7,7 @@ sudo snap list | grep microk8s
 sudo snap remove microk8s  
 
 # instalamos microk8s vía snap 
-sudo snap install microk8s –classic 
+sudo snap install microk8s --classic 
 
  # Añadir el usuario al grupo microk8s ejecutando esto desde el “home” del usuario: 
 sudo usermod -a -G microk8s <username> 
@@ -29,6 +29,9 @@ microk8s enable ingress
 
 # activar el dashboard
 microk8s enable dashboard
+
+# desactivar el modo cluster
+microk8s disable ha-cluster
 
 microk8s kubectl get services --all-namespaces | grep kubernetes-dashboard
 kube-system          kubernetes-dashboard        ClusterIP   10.152.183.22    <none>        443/TCP                  10m
