@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dummy-post-office-app-ingress
+  namespace: dummy-post-office-namespace
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  ingressClassName: public
+  rules:
+    - host: post.mydomain.com
+      http:
+        paths:
+          - path: /post-office-api/?(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: dummy-post-office-golang-app-service
+                port:
+                  number: 8080        
+          - path: /?(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: dummy-post-office-vite-nginx-app-service
+                port:
+                  number: 80
+
