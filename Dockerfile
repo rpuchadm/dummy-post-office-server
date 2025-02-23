@@ -1,3 +1,5 @@
+#golang:latest
+
 # Usa una imagen base de Go para compilar la aplicación
 FROM golang:latest AS builder
 
