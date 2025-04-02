@@ -4,6 +4,7 @@ metadata:
   name: dummy-post-office-golang-app
   namespace: dummy-post-office-namespace
 spec:
+  revisionHistoryLimit: 2
   replicas: 1
   selector:
     matchLabels:
