@@ -4,3 +4,5 @@ namespace: dummy-post-office-namespace
 resources:
   - deployment.yaml
   - service.yaml
+  - postgres-config.yaml
+  - persistent-volume-claim.yaml
